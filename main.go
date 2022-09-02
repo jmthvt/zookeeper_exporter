@@ -12,10 +12,11 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
+	
+	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/promlog"
 )
 
 type Servers struct {
@@ -47,6 +48,8 @@ var httpClient = http.Client{
 		}).Dial,
 	},
 }
+
+var logger = promlog.New(&promlog.Config{})
 
 type exporter struct {
 	sync.Mutex
@@ -99,7 +102,7 @@ func (e *exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (e *exporter) recordErr(err error) {
-	log.Error("Error: ", err)
+	level.Error(logger).Log("msg", "Record Error", "err", err)
 	e.errors.Inc()
 }
 
@@ -135,7 +138,7 @@ func (e *exporter) scrape(ch chan<- prometheus.Metric) {
 			return
 		}
 
-		log.Debugf("Got serverlist from Exhibitor: %s", serverList)
+		level.Debug(logger).Log("msg", fmt.Sprtinf("Got serverlist from Exhibitor: %s", serverList))
 
 		for _, host := range serverList.Servers {
 			servers = append(servers, fmt.Sprintf("%s:%d", host, serverList.Port))
@@ -144,10 +147,10 @@ func (e *exporter) scrape(ch chan<- prometheus.Metric) {
 		servers = e.addrs
 	}
 
-	log.Debugf("Polling servers: %s", servers)
+	level.Debug(logger).Log("msg", fmt.Sprtinf("Polling servers: %s", servers))
 	var wg sync.WaitGroup
 	for _, server := range servers {
-		log.Debugf("Polling server: %s", server)
+		level.Debug(logger).Log("msg", fmt.Sprintf("Polling server: %s", server))
 		wg.Add(1)
 		go e.pollServer(server, ch, &wg)
 	}
@@ -178,7 +181,7 @@ func (e *exporter) pollServer(server string, ch chan<- prometheus.Metric, wg *sy
 		case "zk_version":
 			continue
 		case "zk_server_state":
-			log.Debugf("%s: %d", key+"_"+value, 1)
+			level.Debug(logger).Log("msg", fmt.Sprintf("%s: %d", key+"_"+value, 1))
 			ch <- prometheus.MustNewConstMetric(
 				prometheus.NewDesc(
 					key+"_"+value,
@@ -187,7 +190,7 @@ func (e *exporter) pollServer(server string, ch chan<- prometheus.Metric, wg *sy
 				), prometheus.GaugeValue, 1, server)
 		default:
 			v, _ := strconv.Atoi(value)
-			log.Debugf("%s: %d", key, v)
+			level.Debug(logger).Log("msg", fmt.Sprintf("%s: %d", key, v))
 			ch <- prometheus.MustNewConstMetric(
 				prometheus.NewDesc(
 					key,
@@ -208,7 +211,7 @@ func main() {
 		http.Redirect(w, r, *metricPath, http.StatusMovedPermanently)
 	})
 
-	log.Info("starting mesos_exporter on ", *addr)
+	level.Info(logger).Log("msg", fmt.Sprintf("starting mesos_exporter on ", *addr))
 
-	log.Fatal(http.ListenAndServe(*addr, nil))
+	level.Fatal(logger).Log("msg", http.ListenAndServe(*addr, nil))
 }
