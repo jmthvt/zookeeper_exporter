@@ -138,7 +138,7 @@ func (e *exporter) scrape(ch chan<- prometheus.Metric) {
 			return
 		}
 
-		level.Debug(logger).Log("msg", fmt.Sprtinf("Got serverlist from Exhibitor: %s", serverList))
+		level.Debug(logger).Log("msg", fmt.Sprintf("Got serverlist from Exhibitor: %s", serverList))
 
 		for _, host := range serverList.Servers {
 			servers = append(servers, fmt.Sprintf("%s:%d", host, serverList.Port))
@@ -147,7 +147,7 @@ func (e *exporter) scrape(ch chan<- prometheus.Metric) {
 		servers = e.addrs
 	}
 
-	level.Debug(logger).Log("msg", fmt.Sprtinf("Polling servers: %s", servers))
+	level.Debug(logger).Log("msg", fmt.Sprintf("Polling servers: %s", servers))
 	var wg sync.WaitGroup
 	for _, server := range servers {
 		level.Debug(logger).Log("msg", fmt.Sprintf("Polling server: %s", server))
@@ -213,5 +213,5 @@ func main() {
 
 	level.Info(logger).Log("msg", fmt.Sprintf("starting mesos_exporter on ", *addr))
 
-	level.Fatal(logger).Log("msg", http.ListenAndServe(*addr, nil))
+	level.Error(logger).Log("msg", http.ListenAndServe(*addr, nil))
 }
